@@ -47,8 +47,24 @@ Choisir un mot de passe unique via l’invite `passwd`, jamais dans une commande
 Adapter puis installer `deploy/openssh/glassftp.conf` dans `/etc/ssh/sshd_config.d/70-glassftp.conf`. Vérifier que le service principal inclut bien ce répertoire. Le compte partagé est limité à internal-sftp, sans shell, forwarding ni connexion depuis le LAN. L’administration SSH existante reste séparée.
 
 ```sh
+sudo install -d -m 0755 /etc/ssh/sshd_config.d
+sudo install -o root -g root -m 0644 deploy/openssh/glassftp.conf /etc/ssh/sshd_config.d/70-glassftp.conf
 sudo /usr/sbin/sshd -t
-sudo /usr/sbin/sshd -T -C user=glassftp-sftp,host=localhost,addr=127.0.0.1
+sudo /usr/sbin/sshd -T -C user=glassftp-sftp,host=localhost,addr=127.0.0.1 | grep -E '^(chrootdirectory|forcecommand) '
+```
+
+La configuration effective doit afficher ces deux valeurs (l’ordre peut varier) :
+
+```text
+chrootdirectory /srv/glassftp
+forcecommand internal-sftp -d /shared -u 0027
+```
+
+Si elle affiche `none`, le fichier n’est pas pris en compte ou une autre règle correspondante prend priorité. Vérifier l’inclusion de `/etc/ssh/sshd_config.d/*.conf` dans la section globale de `/etc/ssh/sshd_config` et les autres règles `Match` avant de recharger. Avec ce chroot, `/shared` dans SFTP désigne `/srv/glassftp/shared` sur Debian. Un `ls /shared` exécuté au prompt Linux ne vérifie pas le répertoire partagé du chroot. Le compte à shell `nologin` doit utiliser `internal-sftp` comme prévu.
+
+Après validation des deux valeurs et succès de `sshd -t` :
+
+```sh
 sudo systemctl reload ssh
 sudo ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub -E sha256
 ```
