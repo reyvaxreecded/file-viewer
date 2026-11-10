@@ -1,0 +1,2 @@
+Fichier de test GlassFTP.
+Importé avec le sélecteur natif du navigateur, puis transmis par SSH/SFTP.

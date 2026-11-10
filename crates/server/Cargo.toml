@@ -1,0 +1,28 @@
+[package]
+name = "glassftp-server"
+version.workspace = true
+edition.workspace = true
+[dependencies]
+glassftp-shared.workspace = true
+glassftp-sftp.workspace = true
+axum = { version = "0.8.9", features = ["macros"] }
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tower-http = { version = "0.6", features = ["fs", "trace", "limit"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
+tokio-util = { version = "0.7", features = ["io"] }
+futures-util = "0.3"
+bytes = "1"
+uuid.workspace = true
+rusqlite = { version = "0.37", features = ["bundled"] }
+url = "2"
+percent-encoding = "2"
+sha2 = "0.10"
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+tempfile = "3"
+

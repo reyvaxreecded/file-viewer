@@ -1,0 +1,15 @@
+# EXAMPLE ONLY. Merge into the actual firewall; never flush an existing ruleset.
+# Keep an administrative console and a second SSH session open when testing.
+# Adapt LAN/admin subnets, SSH port and services used by this machine.
+table inet glassftp_example {
+    chain input {
+        type filter hook input priority 0; policy drop;
+        iifname "lo" accept
+        ct state established,related accept
+        ct state invalid drop
+        ip protocol icmp accept
+        meta l4proto ipv6-icmp accept
+        ip saddr 192.168.10.0/24 tcp dport 443 accept
+        ip saddr 192.168.10.5 tcp dport 22 accept # actual admin workstation/subnet
+    }
+}

@@ -1,0 +1,44 @@
+[Unit]
+Description=GlassFTP shared SFTP explorer
+After=network.target ssh.service
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=glassftp
+Group=glassftp
+WorkingDirectory=/opt/glassftp
+EnvironmentFile=/etc/glassftp/glassftp.env
+ExecStart=/opt/glassftp/bin/glassftp-server
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGINT
+TimeoutStopSec=90
+UMask=0077
+StateDirectory=glassftp
+StateDirectoryMode=0700
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/glassftp
+InaccessiblePaths=/srv/glassftp
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LimitNOFILE=4096
+TasksMax=128
+# This profile assumes SFTP is local. Adjust explicitly if that changes.
+IPAddressDeny=any
+IPAddressAllow=localhost
+
+[Install]
+WantedBy=multi-user.target

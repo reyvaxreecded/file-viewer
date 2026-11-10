@@ -1,0 +1,13 @@
+/target/
+/dist/
+/.tools/
+/.test-state/
+/.env
+*.sqlite*
+*.pem
+*.key
+/test-results/
+/node_modules/
+.DS_Store
+__pycache__/
+
