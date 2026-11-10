@@ -15,10 +15,12 @@ use axum::{
 };
 use std::{
     collections::HashMap,
+    future::IntoFuture,
     sync::{Arc, Mutex, Weak},
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use tokio::sync::{Mutex as AsyncMutex, Semaphore, broadcast};
+use tokio_util::sync::CancellationToken;
 use tower_http::services::ServeDir;
 #[derive(Clone)]
 pub struct App(Arc<Inner>);
@@ -30,6 +32,7 @@ pub struct Inner {
     transfers: Arc<Semaphore>,
     locks: Mutex<HashMap<String, Weak<AsyncMutex<()>>>>,
     events: broadcast::Sender<String>,
+    shutdown: CancellationToken,
 }
 impl std::ops::Deref for App {
     type Target = Inner;
@@ -103,6 +106,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let pool = glassftp_sftp::Pool::new(config.sftp.clone());
     let store = Store::open(&config.database).map_err(|_| "Cannot open metadata database")?;
     let (events, _) = broadcast::channel(128);
+    let shutdown = CancellationToken::new();
     let addr = config.listen;
     let app = App(Arc::new(Inner {
         transfers: Arc::new(Semaphore::new(config.transfers)),
@@ -110,6 +114,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         pool,
         store,
         events,
+        shutdown: shutdown.clone(),
         mutation: AsyncMutex::new(()),
         locks: Mutex::new(HashMap::new()),
     }));
@@ -120,10 +125,44 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tokio::spawn(maintenance::run(app.clone()));
     let listener = tokio::net::TcpListener::bind(addr).await?;
     tracing::info!(listen = %addr, "GlassFTP ready");
-    axum::serve(listener, router(app))
-        .with_graceful_shutdown(async {
-            let _ = tokio::signal::ctrl_c().await;
+    let requested = shutdown.clone();
+    let server = axum::serve(listener, router(app))
+        .with_graceful_shutdown(async move {
+            shutdown_signal().await;
+            requested.cancel();
+            tracing::info!("Shutdown requested; waiting for active HTTP requests");
         })
-        .await?;
+        .into_future();
+    tokio::select! {
+        result = server => result?,
+        _ = async {
+            shutdown.cancelled().await;
+            tokio::time::sleep(Duration::from_secs(75)).await;
+        } => {
+            tracing::warn!("Shutdown drain deadline exceeded; incomplete transfers retain their journal");
+            return Err(std::io::Error::new(std::io::ErrorKind::TimedOut, "HTTP shutdown deadline exceeded").into());
+        }
+    }
+    tracing::info!("HTTP server stopped");
     Ok(())
+}
+
+async fn shutdown_signal() {
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{SignalKind, signal};
+        match signal(SignalKind::terminate()) {
+            Ok(mut terminate) => tokio::select! {
+                _ = tokio::signal::ctrl_c() => (),
+                _ = terminate.recv() => (),
+            },
+            Err(_) => {
+                let _ = tokio::signal::ctrl_c().await;
+            }
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = tokio::signal::ctrl_c().await;
+    }
 }

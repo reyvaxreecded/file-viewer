@@ -527,10 +527,12 @@ pub async fn download(
 pub async fn events(
     State(a): State<App>,
 ) -> Sse<impl futures_util::Stream<Item = std::result::Result<Event, std::convert::Infallible>>> {
-    let stream = BroadcastStream::new(a.events.subscribe()).map(|result| {
-        Ok(Event::default()
-            .event("change")
-            .data(result.unwrap_or_else(|_| "{\"path\":\"*\"}".into())))
-    });
+    let stream = BroadcastStream::new(a.events.subscribe())
+        .map(|result| {
+            Ok(Event::default()
+                .event("change")
+                .data(result.unwrap_or_else(|_| "{\"path\":\"*\"}".into())))
+        })
+        .take_until(a.shutdown.clone().cancelled_owned());
     Sse::new(stream).keep_alive(KeepAlive::default())
 }

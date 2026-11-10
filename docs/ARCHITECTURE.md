@@ -31,6 +31,8 @@ La corbeille journalise le chemin original avant le renommage SFTP. Une panne pe
 
 SSE invalide les vues des autres navigateurs ; il ne constitue pas un verrou distribué. Un rafraîchissement à la reprise de focus et toutes les 60 secondes (hors onglet masqué/édition non sauvegardée) détecte les changements externes. Une seule instance de backend doit écrire dans cet espace.
 
+SIGINT et SIGTERM ferment les flux SSE et arrêtent l’acceptation de connexions HTTP. Le backend attend au plus 75 secondes les requêtes actives ; au-delà, il sort en erreur et conserve le journal des transferts incomplets. Le délai systemd est de 90 secondes. Un transfert déjà finalisé n’est pas effacé lors de cet arrêt.
+
 ## Décisions restantes
 
 L’adresse Debian, le nom DNS, les sous-réseaux autorisés et le certificat interne relèvent de votre environnement et ne sont pas devinés. La qualification de production devra mesurer les limites de concurrence, les gros transferts et la charge réelle avant toute promesse de débit.

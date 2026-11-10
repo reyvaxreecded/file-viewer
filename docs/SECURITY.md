@@ -34,4 +34,4 @@ Pas de purge automatique de la corbeille. Les uploads abandonnés expirent aprè
 
 ## Avant production
 
-Exécuter un audit des dépendances Rust et du toolchain dans l’environnement de build, tester les configurations réelles, les mises à jour OpenSSH/Nginx et les cas réseau hostiles. Aucun audit externe ni mesure de charge multi-Go n’a été réalisé. Les tests locaux ne constituent pas une certification de sécurité.
+Exécuter un audit des dépendances Rust et du toolchain dans l’environnement de build, tester les configurations réelles, les mises à jour OpenSSH/Nginx et les cas réseau hostiles. Un transfert local de 2 Gio et cinq clients simultanés ont été vérifiés (voir [les mesures](STATUS.md)), mais aucun audit externe ni test de charge sur Debian n’a été réalisé. Les tests locaux ne constituent pas une certification de sécurité.

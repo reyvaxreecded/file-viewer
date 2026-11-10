@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Real HTTP -> Rust -> SSH -> SFTP tests; no storage mock in the application.
-Run after building: .tools/venv/bin/python tests/integration.py [--serve]
+Run after building: .tools/venv/bin/python tests/integration.py [--serve] [--large]
 The fixture uses temporary data and random credentials, only on loopback.
 """
 import concurrent.futures
@@ -73,6 +73,7 @@ def wait_ready(proc):
 
 def main():
     (REPO / 'test-results').mkdir(exist_ok=True)
+    (REPO / 'test-results/integration.json').unlink(missing_ok=True)
     state = tempfile.TemporaryDirectory(prefix='glassftp-test-')
     work = Path(state.name)
     root = work / 'sftp'
@@ -93,6 +94,7 @@ def main():
     listener, transports = start(root, key, 'glassftp-test', password, SFTP_PORT)
     env = os.environ | {'APP_PORT': str(APP_PORT), 'APP_BASE_URL': BASE, 'SFTP_HOST': '127.0.0.1', 'SFTP_PORT': str(SFTP_PORT), 'SFTP_USERNAME': 'glassftp-test', 'SFTP_PASSWORD': password, 'SFTP_ROOT': '/shared', 'SFTP_HOST_KEY_SHA256': fingerprint, 'DATABASE_PATH': str(work / 'state.sqlite'), 'ASSET_DIRECTORY': str(REPO / 'dist'), 'SFTP_TIMEOUT_SECONDS': '5'}
     binary = REPO / 'target/debug/glassftp-server'
+    env['RUST_LOG'] = 'glassftp_server=info'
     log = (REPO / 'test-results/server.log').open('w')
     proc = None
     try:
@@ -131,7 +133,14 @@ def main():
         sock.close()
         time.sleep(.2)
         check('interrupted chunk does not commit', request('GET', f'/api/v1/uploads/{u["id"]}')[0]['offset'] == 65536)
+        events = http.client.HTTPConnection('127.0.0.1', APP_PORT, timeout=20)
+        events.request('GET', '/api/v1/events')
+        event_response = events.getresponse()
+        assert event_response.status == 200
         proc.send_signal(signal.SIGINT); proc.wait(timeout=15)
+        event_response.read()
+        events.close()
+        check('graceful shutdown closes live SSE clients', proc.returncode == 0)
         proc = subprocess.Popen([str(binary)], env=env, stdout=log, stderr=log); wait_ready(proc)
         check('committed offset survives restart', request('GET', f'/api/v1/uploads/{u["id"]}')[0]['offset'] == 65536)
         request('PATCH', f'/api/v1/uploads/{u["id"]}', data[65536:], {'Upload-Offset': '65536'})
@@ -204,8 +213,8 @@ def main():
                 request('PATCH', f'/api/v1/uploads/{u["id"]}', block, {'Upload-Offset': str(offset)})
                 expected_hash.update(block)
                 peak_rss = max(peak_rss, sample_rss())
-                if offset % (256 * 1024**2) == 0:
-                    print(f'LARGE upload {offset // 1024**2} / 2048 MiB', flush=True)
+                if (offset + len(block)) % (256 * 1024**2) == 0:
+                    print(f'LARGE upload {(offset + len(block)) // 1024**2} / 2048 MiB', flush=True)
             request('POST', f'/api/v1/uploads/{u["id"]}/complete', {})
             connection = http.client.HTTPConnection('127.0.0.1', APP_PORT, timeout=60)
             connection.request('GET', '/api/v1/download?path=/large-2GiB.bin')

@@ -2,7 +2,7 @@
 
 Explorateur SFTP partagé en Rust, pour un réseau local. Interface Leptos/WebAssembly, API Axum et accès aux fichiers exclusivement par SSH/SFTP. Aucun compte individuel, aucun CDN, aucune télémétrie ni service cloud.
 
-**État : première version de développement fonctionnelle, non encore qualifiée pour la production.** Le backend et le frontend compilent. Les essais locaux utilisent un véritable serveur SSH/SFTP de test Paramiko, pas un remplacement du stockage dans l’application. La qualification OpenSSH/Nginx/Debian 13 et les transferts de plusieurs Go restent à effectuer. Voir [l’état détaillé](docs/STATUS.md).
+**État : première version de développement fonctionnelle, non encore qualifiée pour la production.** Le backend et le frontend compilent. Les essais locaux utilisent un véritable serveur SSH/SFTP de test Paramiko, pas un remplacement du stockage dans l’application. Un aller-retour de 2 Gio avec comparaison SHA-256 et cinq clients simultanés ont été vérifiés. La qualification OpenSSH/Nginx/Debian 13 reste à effectuer. Voir [l’état détaillé et les mesures](docs/STATUS.md).
 
 ## Démarrer
 
@@ -28,6 +28,8 @@ bash scripts/build-web.sh
 python3 -m venv .tools/venv
 .tools/venv/bin/pip install paramiko==4.0.0
 .tools/venv/bin/python tests/integration.py
+# Ajoutez --large pour tester un aller-retour de 2 Gio et mesurer le RSS.
+# Prévoir au moins 3 Gio d’espace temporaire libre pour cet essai.
 # Ajoutez --serve pour conserver temporairement l’interface de test sur :18080.
 ```
 
